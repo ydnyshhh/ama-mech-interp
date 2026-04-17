@@ -179,6 +179,8 @@ def main() -> None:
         print(f"pipeline_manifest: {args.outputs_root / 'minimum_viable_pipeline.json'}")
         print(f"minimum_viable_prompt_count: {manifest['materialized_prompt_suites'].minimum_viable_prompt_count}")
         print(f"behavior_runs: {len(manifest['behavior_outputs'])}")
+        for command in manifest["behavior_execution_commands"]:
+            print(f"run_behavior_command: {command}")
         return
 
     if args.command == "select-checkpoints":

@@ -457,6 +457,8 @@ Prepare the minimum viable end-to-end bundle:
 uv run python -m ama_mech_interp minimum-viable-pipeline
 ```
 
+This prints ready-to-run `run-behavior --manifest ...` commands for the planned MVR behavior bundles.
+
 Run actual behavior inference for one model and one prompt suite:
 
 ```powershell

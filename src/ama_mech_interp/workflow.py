@@ -69,6 +69,10 @@ def buildAnalysisGroupKey(prompt_suite_name: str, run_id: str) -> str:
     return f"{prompt_suite_name}__{run_id}"
 
 
+def buildRunBehaviorCommand(manifest_path: Path) -> str:
+    return f"uv run ama-mech-interp run-behavior --manifest {manifest_path}"
+
+
 def bootstrapMinimumViablePipeline(
     csv_path: Path,
     artifacts_root: Path,
@@ -80,6 +84,7 @@ def bootstrapMinimumViablePipeline(
     prompt_suite_name = "prompt_suite_mvr1"
 
     behavior_outputs: list[dict[str, str]] = []
+    behavior_execution_commands: list[str] = []
     activation_outputs: list[dict[str, str]] = []
     activation_plan_paths: list[Path] = []
     behavior_rows_paths: list[Path] = []
@@ -93,6 +98,7 @@ def bootstrapMinimumViablePipeline(
             prompt_suite_rows=minimum_viable_prompt_rows,
         )
         behavior_outputs.append(behavior_output)
+        behavior_execution_commands.append(buildRunBehaviorCommand(Path(behavior_output["manifest_path"])))
         behavior_rows_paths.append(Path(behavior_output["behavior_rows_path"]))
         activation_output = writeActivationPlan(
             output_root=outputs_root,
@@ -141,6 +147,7 @@ def bootstrapMinimumViablePipeline(
         "prompt_suite_name": prompt_suite_name,
         "materialized_prompt_suites": materialized_prompt_suites,
         "behavior_outputs": behavior_outputs,
+        "behavior_execution_commands": behavior_execution_commands,
         "activation_outputs": activation_outputs,
         "analysis_jobs": {
             "behavior_summary": str(behavior_summary_job_path),
