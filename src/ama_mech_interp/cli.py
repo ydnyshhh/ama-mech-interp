@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .analysis.behavior_summary import writeBehaviorSummary
 from .analysis.disagreement import writeDisagreementArtifacts
-from .data.gt_harmbench import loadGtHarmBenchRows
+from .data.gt_harmbench import loadGtHarmBenchDataset
 from .models.checkpoint_selection import loadCheckpointCandidates, selectSparseCheckpointLadder, writeCheckpointSelection
 from .models.load_qwen_adapter import getPhaseOneModelLoadSpecs
 from .phase_one import renderPlanAsJson, renderPlanAsMarkdown
@@ -37,6 +37,7 @@ def addMaterializePromptSuiteCommand(subparsers: argparse._SubParsersAction[argp
     parser = subparsers.add_parser("materialize-prompt-suite", help="Build and write the canonical prompt suite artifacts.")
     parser.add_argument("--csv", type=Path, default=DEFAULT_DATASET_PATH, help="Path to the GT-HarmBench CSV file.")
     parser.add_argument("--artifacts-root", type=Path, default=DEFAULT_ARTIFACTS_ROOT, help="Directory for prompt suite artifacts.")
+    parser.add_argument("--skip-csv", action="store_true", help="Do not write companion CSV artifacts.")
 
 
 def addMinimumViablePipelineCommand(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -68,11 +69,19 @@ def addDisagreementCommand(subparsers: argparse._SubParsersAction[argparse.Argum
 
 
 def formatDatasetSummary(csv_path: Path) -> str:
-    rows = loadGtHarmBenchRows(csv_path)
+    load_result = loadGtHarmBenchDataset(csv_path)
+    rows = load_result.records
+    report = load_result.report
     game_counts = Counter(row.formal_game for row in rows)
     risk_counts = Counter(str(row.risk_level) if row.risk_level is not None else "missing" for row in rows)
-    disagreement_counts = Counter(row.disagreement_bucket for row in rows)
-    lines: list[str] = [f"rows: {len(rows)}", f"csv: {csv_path}", "", "games:"]
+    disagreement_counts = Counter(row.target_agreement_bucket for row in rows)
+    lines: list[str] = [
+        f"rows: {len(rows)}",
+        f"csv: {csv_path}",
+        f"dropped_rows: {report.dropped_rows}",
+        "",
+        "games:",
+    ]
     for game, count in game_counts.most_common():
         lines.append(f"  - {game}: {count}")
     lines.append("")
@@ -127,11 +136,14 @@ def main() -> None:
         return
 
     if args.command == "materialize-prompt-suite":
-        result = materializePromptSuites(args.csv, args.artifacts_root)
+        result = materializePromptSuites(args.csv, args.artifacts_root, write_companion_csv=not args.skip_csv)
+        print(f"master_prompt_pool: {result.master_prompt_pool_path}")
         print(f"full_prompt_suite: {result.full_prompt_suite_path}")
         print(f"minimum_viable_prompt_suite: {result.minimum_viable_prompt_suite_path}")
+        print(f"master_prompt_count: {result.master_prompt_count}")
         print(f"full_prompt_count: {result.full_prompt_count}")
         print(f"minimum_viable_prompt_count: {result.minimum_viable_prompt_count}")
+        print(f"build_report: {result.build_report_path}")
         return
 
     if args.command == "minimum-viable-pipeline":

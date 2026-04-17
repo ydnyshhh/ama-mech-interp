@@ -4,10 +4,11 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
-from .data.gt_harmbench import GtHarmBenchRow, loadGtHarmBenchRows
+from .data.gt_harmbench import loadGtHarmBenchRows
+from .data.prompt_schema import PromptSuiteRecord
 
 
-PromptRecord = GtHarmBenchRow
+PromptRecord = PromptSuiteRecord
 
 
 @dataclass(frozen=True)
@@ -26,7 +27,7 @@ def loadPromptRecords(csv_path: Path) -> list[PromptRecord]:
 def summarizeDataset(records: list[PromptRecord]) -> DatasetSummary:
     game_counts = Counter(record.formal_game for record in records)
     risk_counts = Counter(str(record.risk_level) if record.risk_level is not None else "missing" for record in records)
-    disagreement_counts = Counter(record.disagreement_bucket for record in records)
+    disagreement_counts = Counter(record.target_agreement_bucket for record in records)
     return DatasetSummary(
         row_count=len(records),
         missing_story_count=0,

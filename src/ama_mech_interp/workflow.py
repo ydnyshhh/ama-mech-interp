@@ -8,6 +8,7 @@ from .analysis.disagreement import writeDisagreementJobSpec
 from .analysis.drift import writeDriftJobSpec
 from .analysis.logit_depth import writeLogitDepthJobSpec
 from .analysis.probes import writeProbeJobSpec
+from .data.build_prompt_suite import materializePromptSuiteArtifacts
 from .data.prompt_suite import buildDefaultPromptSuite, buildMinimumViablePromptSuite, writePromptSuite
 from .eval.run_behavior import writeBehaviorBundle
 from .extract.save_activations import writeActivationPlan
@@ -17,33 +18,50 @@ from .storage import readJsonlFile, writeJsonFile
 
 @dataclass(frozen=True)
 class MaterializedPromptSuites:
+    master_prompt_pool_path: Path
     full_prompt_suite_path: Path
     minimum_viable_prompt_suite_path: Path
+    master_prompt_count: int
     full_prompt_count: int
     minimum_viable_prompt_count: int
+    build_report_path: Path
 
 
-def materializePromptSuites(csv_path: Path, artifacts_root: Path) -> MaterializedPromptSuites:
+def materializePromptSuites(
+    csv_path: Path,
+    artifacts_root: Path,
+    write_companion_csv: bool = True,
+) -> MaterializedPromptSuites:
+    artifact_bundle = materializePromptSuiteArtifacts(
+        csv_path=csv_path,
+        artifacts_root=artifacts_root,
+        write_companion_csv=write_companion_csv,
+    )
     full_prompt_suite_rows = buildDefaultPromptSuite(csv_path)
     minimum_viable_rows = buildMinimumViablePromptSuite(full_prompt_suite_rows)
-    full_prompt_suite_path = artifacts_root / "prompt_suite_v1.jsonl"
+    full_prompt_suite_path = artifact_bundle.suite_path
     minimum_viable_prompt_suite_path = artifacts_root / "prompt_suite_mvr1.jsonl"
-    writePromptSuite(full_prompt_suite_path, full_prompt_suite_rows)
     writePromptSuite(minimum_viable_prompt_suite_path, minimum_viable_rows)
     writeJsonFile(
         artifacts_root / "prompt_suite_manifest.json",
         {
+            "master_prompt_pool_path": str(artifact_bundle.master_pool_path),
             "full_prompt_suite_path": str(full_prompt_suite_path),
             "minimum_viable_prompt_suite_path": str(minimum_viable_prompt_suite_path),
+            "master_prompt_count": artifact_bundle.master_pool_count,
             "full_prompt_count": len(full_prompt_suite_rows),
             "minimum_viable_prompt_count": len(minimum_viable_rows),
+            "build_report_path": str(artifact_bundle.report_path),
         },
     )
     return MaterializedPromptSuites(
+        master_prompt_pool_path=artifact_bundle.master_pool_path,
         full_prompt_suite_path=full_prompt_suite_path,
         minimum_viable_prompt_suite_path=minimum_viable_prompt_suite_path,
+        master_prompt_count=artifact_bundle.master_pool_count,
         full_prompt_count=len(full_prompt_suite_rows),
         minimum_viable_prompt_count=len(minimum_viable_rows),
+        build_report_path=artifact_bundle.report_path,
     )
 
 
