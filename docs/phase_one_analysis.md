@@ -4,6 +4,10 @@
 
 Use Qwen only for phase one. Treat each checkpoint as a training snapshot, not just a saved artifact. Optimize for a compact, workshop-oriented pass that can scale into activation patching later.
 
+## Minimum Viable Result
+
+Materialize the prompt suite, prepare four final-checkpoint Qwen runs, write planned behavior bundles, write activation requests, and emit drift, probe, and logit-depth job specs. This is the smallest end-to-end bundle that should exist before expanding to checkpoint ladders or larger prompt suites.
+
 ## First Hypotheses
 
 1. Deontological, utilitarian, and game-theoretic tuning preserve a shared strategic backbone and diverge mostly in late-stage readout.
@@ -17,6 +21,14 @@ Use Qwen only for phase one. Treat each checkpoint as a training snapshot, not j
 3. Probe accuracy by layer and checkpoint
 4. Logit-through-depth panels
 5. Ranked prompt shortlist for patching
+
+## Run Path
+
+1. `uv run python -m ama_mech_interp materialize-prompt-suite`
+2. `uv run python -m ama_mech_interp minimum-viable-pipeline`
+3. Import observed behavior rows into the prepared `outputs/behavior/...` folders
+4. Run `behavior-summary` and `disagreement`
+5. Fill activation artifacts and execute the prepared drift, probe, and logit-depth jobs
 
 ## Most Informative Prompt Subsets
 

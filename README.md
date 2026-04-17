@@ -9,6 +9,53 @@ This repo is scoped to a clean, workshop-oriented first pass:
 - behaviorally grounded prompts instead of neuron-first analysis
 - representations, probes, and logit-depth before causal tracing
 
+## Repo Layout
+
+The source tree now mirrors the intended analysis stack directly:
+
+- `src/ama_mech_interp/data/gt_harmbench.py`
+- `src/ama_mech_interp/data/prompt_suite.py`
+- `src/ama_mech_interp/models/load_qwen_adapter.py`
+- `src/ama_mech_interp/models/checkpoint_selection.py`
+- `src/ama_mech_interp/eval/run_behavior.py`
+- `src/ama_mech_interp/extract/save_activations.py`
+- `src/ama_mech_interp/analysis/behavior_summary.py`
+- `src/ama_mech_interp/analysis/drift.py`
+- `src/ama_mech_interp/analysis/probes.py`
+- `src/ama_mech_interp/analysis/logit_depth.py`
+- `src/ama_mech_interp/analysis/disagreement.py`
+- `src/ama_mech_interp/workflow.py`
+
+The pipeline order is encoded directly in code:
+
+1. load checkpoints
+2. build prompt suite
+3. run behavior
+4. extract activations
+5. analyze drift, probes, logit depth, and disagreement
+
+## Canonical Run Spec
+
+Every artifact is keyed by the same canonical unit of analysis:
+
+- `model_family`
+- `objective`
+- `reasoning_mode`
+- `tool_mode`
+- `checkpoint`
+- `prompt_suite`
+- `run_id`
+
+The code turns that into a stable run key and uses it in output paths.
+
+## Minimum Viable First Result
+
+The first concrete milestone is:
+
+Compare base, deontological, utilitarian, and game-theoretic Qwen final checkpoints on a 40-prompt subset; save final-position residual-stream requests; produce one behavior table, one layerwise drift job, one action-probe job, and one prompt-level logit-depth job.
+
+This repo now prepares that bundle directly with one command.
+
 ## Phase One Goal
 
 Support this core question:
@@ -53,6 +100,28 @@ Build an approximately 200-prompt workshop suite with three blocks:
 3. `40` disagreement prompts
    Reserve for prompts where target labels disagree or the models later disagree behaviorally.
    These become the patching shortlist.
+
+The repo materializes this into stable artifacts instead of rebuilding it implicitly:
+
+- `artifacts/prompt_suite_v1.jsonl`
+- `artifacts/prompt_suite_mvr1.jsonl`
+- `artifacts/prompt_suite_manifest.json`
+
+Each prompt row follows a stable schema:
+
+- `prompt_id`
+- `source`
+- `subset`
+- `formal_game`
+- `prompt_text`
+- `actions`
+- `payoff_matrix`
+- `risk_level`
+- `history_type`
+- `target_nash`
+- `target_util`
+- `target_rawls`
+- `target_nsw`
 
 ### GT-HarmBench Guidance
 
@@ -203,6 +272,15 @@ Do not save in phase one:
 
 Use flat, analysis-friendly tables.
 
+Generated outputs are organized by pipeline stage:
+
+- `outputs/behavior/...`
+- `outputs/activations/...`
+- `outputs/drift/...`
+- `outputs/probes/...`
+- `outputs/logit_depth/...`
+- `outputs/disagreement/...`
+
 ### `prompt_table`
 
 One row per prompt variant.
@@ -278,17 +356,42 @@ Use `uv` from this repo.
 Print the GT-HarmBench summary:
 
 ```powershell
-uv run python -m ama_mech_interp.cli dataset-summary
+uv run python -m ama_mech_interp dataset-summary
 ```
 
-Print the phase-one plan:
+Materialize the canonical prompt suite artifacts:
 
 ```powershell
-uv run python -m ama_mech_interp.cli phase-one-plan
+uv run python -m ama_mech_interp materialize-prompt-suite
 ```
 
-Print the Qwen model registry:
+Prepare the minimum viable end-to-end bundle:
 
 ```powershell
-uv run python -m ama_mech_interp.cli model-registry
+uv run python -m ama_mech_interp minimum-viable-pipeline
+```
+
+Select a sparse checkpoint ladder from a candidate file:
+
+```powershell
+uv run python -m ama_mech_interp select-checkpoints --input checkpoint_candidates.jsonl --output artifacts/checkpoint_selection.json
+```
+
+Write a behavior summary after you import observed behavior rows:
+
+```powershell
+uv run python -m ama_mech_interp behavior-summary --prompt-suite artifacts/prompt_suite_mvr1.jsonl --behavior-rows outputs/behavior/qwen35_9b__base__native__none__base__prompt_suite_mvr1__mvr1/behavior_rows.jsonl --output outputs/behavior/behavior_summary.json
+```
+
+Rank disagreement prompts after you have observed behavior rows from multiple models:
+
+```powershell
+uv run python -m ama_mech_interp disagreement --prompt-suite artifacts/prompt_suite_mvr1.jsonl --behavior-rows outputs/behavior/.../behavior_rows.jsonl outputs/behavior/.../behavior_rows.jsonl --output-dir outputs/disagreement/prompt_suite_mvr1__mvr1
+```
+
+Print the Qwen model registry or the phase-one analysis plan:
+
+```powershell
+uv run python -m ama_mech_interp model-registry
+uv run python -m ama_mech_interp phase-one-plan
 ```

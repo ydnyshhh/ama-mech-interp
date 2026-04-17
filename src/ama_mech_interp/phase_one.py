@@ -44,6 +44,7 @@ class DataTableSpec:
 @dataclass(frozen=True)
 class PhaseOnePlan:
     research_question: str
+    minimum_viable_result: str
     hypotheses: tuple[Hypothesis, ...]
     analyses: tuple[AnalysisSpec, ...]
     prompt_groups: tuple[PromptGroup, ...]
@@ -58,6 +59,10 @@ def buildPhaseOnePlan() -> PhaseOnePlan:
             "Do deontological, utilitarian, and game-theoretic fine-tuning objectives induce "
             "distinct internal moral decision policies, or do they mostly preserve a shared "
             "strategic representation and differ only in late-stage readout or decision layers?"
+        ),
+        minimum_viable_result=(
+            "Compare base, deontological, utilitarian, and game-theoretic Qwen final checkpoints "
+            "on a 40-prompt subset; prepare behavior rows, activation requests, and drift/probe/logit-depth jobs."
         ),
         hypotheses=(
             Hypothesis(
@@ -292,6 +297,9 @@ def renderPlanAsMarkdown() -> str:
     lines.append("")
     lines.append("## Research Question")
     lines.append(plan.research_question)
+    lines.append("")
+    lines.append("## Minimum Viable Result")
+    lines.append(plan.minimum_viable_result)
     lines.append("")
     lines.append("## Hypotheses")
     for hypothesis in plan.hypotheses:
