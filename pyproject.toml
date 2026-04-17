@@ -1,0 +1,14 @@
+[project]
+name = "ama-mech-interp"
+version = "0.1.0"
+description = "Mechanistic interpretability workflows for agentic moral alignment"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = []
+
+[project.scripts]
+ama-mech-interp = "ama_mech_interp.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
