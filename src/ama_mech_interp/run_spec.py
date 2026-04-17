@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -15,6 +16,20 @@ class RunSpec:
     checkpoint: str
     prompt_suite: str
     repo_id: str
+
+
+def buildRunSpecFromDict(payload: dict[str, Any]) -> RunSpec:
+    return RunSpec(
+        run_id=str(payload["run_id"]),
+        model_key=str(payload["model_key"]),
+        model_family=str(payload["model_family"]),
+        objective=str(payload["objective"]),
+        reasoning_mode=str(payload["reasoning_mode"]),
+        tool_mode=str(payload["tool_mode"]),
+        checkpoint=str(payload["checkpoint"]),
+        prompt_suite=str(payload["prompt_suite"]),
+        repo_id=str(payload["repo_id"]),
+    )
 
 
 def buildRunKey(spec: RunSpec) -> str:

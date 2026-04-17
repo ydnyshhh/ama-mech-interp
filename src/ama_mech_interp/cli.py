@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+import logging
 from pathlib import Path
 
 from .analysis.behavior_summary import writeBehaviorSummary
 from .analysis.disagreement import writeDisagreementArtifacts
 from .data.gt_harmbench import loadGtHarmBenchDataset
+from .eval.run_behavior import executeBehaviorRun, executeBehaviorRunFromManifest
 from .models.checkpoint_selection import loadCheckpointCandidates, selectSparseCheckpointLadder, writeCheckpointSelection
-from .models.load_qwen_adapter import getPhaseOneModelLoadSpecs
+from .models.load_qwen_adapter import InferenceLoadConfig, buildRunSpec, getModelLoadSpec, getPhaseOneModelLoadSpecs
 from .phase_one import renderPlanAsJson, renderPlanAsMarkdown
 from .storage import readJsonlFile
 from .workflow import bootstrapMinimumViablePipeline, materializePromptSuites
@@ -59,6 +61,25 @@ def addBehaviorSummaryCommand(subparsers: argparse._SubParsersAction[argparse.Ar
     parser.add_argument("--prompt-suite", type=Path, required=True, help="Path to the prompt suite JSONL.")
     parser.add_argument("--behavior-rows", type=Path, required=True, help="Path to behavior rows JSONL.")
     parser.add_argument("--output", type=Path, required=True, help="Path for the summary JSON.")
+
+
+def addRunBehaviorCommand(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    parser = subparsers.add_parser("run-behavior", help="Execute actual behavior inference for a planned manifest or a model-key plus prompt-suite pair.")
+    parser.add_argument("--manifest", type=Path, help="Path to an existing behavior run manifest.")
+    parser.add_argument("--model-key", help="Phase-one model key such as qwen_base or qwen_deont_tool.")
+    parser.add_argument("--prompt-suite", type=Path, help="Path to the prompt suite JSONL.")
+    parser.add_argument("--run-id", default="manual", help="Run id used in the canonical run key.")
+    parser.add_argument("--outputs-root", type=Path, help="Directory for behavior outputs. Defaults to the manifest root when --manifest is used, otherwise outputs.")
+    parser.add_argument("--device-map", default="auto", help="Transformers device_map value.")
+    parser.add_argument(
+        "--torch-dtype",
+        choices=("auto", "bfloat16", "float16", "float32"),
+        default="auto",
+        help="Torch dtype for model loading.",
+    )
+    parser.add_argument("--local-files-only", action="store_true", help="Load model files only from the local Hugging Face cache.")
+    parser.add_argument("--force", action="store_true", help="Recompute completed prompts instead of resuming.")
+    parser.add_argument("--max-prompts", type=int, help="Execute only the first N pending prompts.")
 
 
 def addDisagreementCommand(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -115,11 +136,13 @@ def buildParser() -> argparse.ArgumentParser:
     addMinimumViablePipelineCommand(subparsers)
     addCheckpointSelectionCommand(subparsers)
     addBehaviorSummaryCommand(subparsers)
+    addRunBehaviorCommand(subparsers)
     addDisagreementCommand(subparsers)
     return parser
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     parser = buildParser()
     args = parser.parse_args()
 
@@ -168,6 +191,51 @@ def main() -> None:
     if args.command == "behavior-summary":
         writeBehaviorSummary(args.output, args.prompt_suite, args.behavior_rows)
         print(f"behavior_summary: {args.output}")
+        return
+
+    if args.command == "run-behavior":
+        inference_config = InferenceLoadConfig(
+            device_map=args.device_map,
+            torch_dtype=args.torch_dtype,
+            local_files_only=args.local_files_only,
+        )
+        try:
+            if args.manifest is not None:
+                summary = executeBehaviorRunFromManifest(
+                    manifest_path=args.manifest,
+                    output_root=args.outputs_root,
+                    inference_config=inference_config,
+                    force=args.force,
+                    max_prompts=args.max_prompts,
+                    logger=logging.getLogger("ama_mech_interp.run_behavior"),
+                )
+            else:
+                if not args.model_key or args.prompt_suite is None:
+                    parser.error("run-behavior requires either --manifest or both --model-key and --prompt-suite.")
+                run_spec = buildRunSpec(
+                    model_spec=getModelLoadSpec(args.model_key),
+                    prompt_suite=args.prompt_suite.stem,
+                    run_id=args.run_id,
+                )
+                summary = executeBehaviorRun(
+                    spec=run_spec,
+                    prompt_suite_path=args.prompt_suite,
+                    output_root=args.outputs_root or DEFAULT_OUTPUTS_ROOT,
+                    inference_config=inference_config,
+                    force=args.force,
+                    max_prompts=args.max_prompts,
+                    logger=logging.getLogger("ama_mech_interp.run_behavior"),
+                )
+        except RuntimeError as error:
+            parser.exit(status=1, message=f"{error}\n")
+        print(f"behavior_rows: {summary.behavior_rows_path}")
+        print(f"run_manifest: {summary.manifest_path}")
+        print(f"prompt_count: {summary.prompt_count}")
+        print(f"executed_prompt_count: {summary.executed_prompt_count}")
+        print(f"completed_prompt_count: {summary.completed_prompt_count}")
+        print(f"failed_prompt_count: {summary.failed_prompt_count}")
+        print(f"skipped_completed_count: {summary.skipped_completed_count}")
+        print(f"remaining_planned_count: {summary.remaining_planned_count}")
         return
 
     if args.command == "disagreement":

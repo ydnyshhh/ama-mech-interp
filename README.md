@@ -190,6 +190,46 @@ This writes:
 - `artifacts/prompt_suite_v1.csv`
 - `artifacts/prompt_suite_v1_build_report.json`
 
+### Behavior Stage
+
+Install the inference stack before running real model behavior:
+
+```powershell
+uv sync --extra inference
+```
+
+Smoke-test the behavior stage on the 40-prompt suite:
+
+```powershell
+uv run ama-mech-interp run-behavior --model-key qwen_base --run-id mvr1 --prompt-suite artifacts/prompt_suite_mvr1.jsonl --max-prompts 40
+uv run ama-mech-interp run-behavior --model-key qwen_deont_tool --run-id mvr1 --prompt-suite artifacts/prompt_suite_mvr1.jsonl --max-prompts 40
+uv run ama-mech-interp run-behavior --model-key qwen_util_tool --run-id mvr1 --prompt-suite artifacts/prompt_suite_mvr1.jsonl --max-prompts 40
+uv run ama-mech-interp run-behavior --model-key qwen_game_tool --run-id mvr1 --prompt-suite artifacts/prompt_suite_mvr1.jsonl --max-prompts 40
+```
+
+Run the full 200-prompt controlled suite:
+
+```powershell
+uv run ama-mech-interp run-behavior --model-key qwen_base --run-id v1 --prompt-suite artifacts/prompt_suite_v1.jsonl
+uv run ama-mech-interp run-behavior --model-key qwen_deont_tool --run-id v1 --prompt-suite artifacts/prompt_suite_v1.jsonl
+uv run ama-mech-interp run-behavior --model-key qwen_util_tool --run-id v1 --prompt-suite artifacts/prompt_suite_v1.jsonl
+uv run ama-mech-interp run-behavior --model-key qwen_game_tool --run-id v1 --prompt-suite artifacts/prompt_suite_v1.jsonl
+```
+
+You can also resume one of the planned pipeline manifests directly:
+
+```powershell
+uv run ama-mech-interp run-behavior --manifest outputs/behavior/qwen35_9b__base__native__none__base__prompt_suite_mvr1__mvr1/run_manifest.json
+```
+
+Inspect completed outputs and feed them into downstream disagreement analysis:
+
+```powershell
+uv run ama-mech-interp behavior-summary --prompt-suite artifacts/prompt_suite_mvr1.jsonl --behavior-rows outputs/behavior/qwen35_9b__base__native__none__base__prompt_suite_mvr1__mvr1/behavior_rows.jsonl --output outputs/behavior/qwen35_9b__base__native__none__base__prompt_suite_mvr1__mvr1/behavior_summary.json
+
+uv run ama-mech-interp disagreement --prompt-suite artifacts/prompt_suite_mvr1.jsonl --behavior-rows outputs/behavior/qwen35_9b__base__native__none__base__prompt_suite_mvr1__mvr1/behavior_rows.jsonl outputs/behavior/qwen35_9b__deontological__native__tool__final__prompt_suite_mvr1__mvr1/behavior_rows.jsonl outputs/behavior/qwen35_9b__utilitarian__native__tool__final__prompt_suite_mvr1__mvr1/behavior_rows.jsonl outputs/behavior/qwen35_9b__game_theoretic__native__tool__final__prompt_suite_mvr1__mvr1/behavior_rows.jsonl --output-dir outputs/disagreement/prompt_suite_mvr1__mvr1
+```
+
 ## Analyses To Run First
 
 Run these in priority order.
@@ -415,6 +455,12 @@ Prepare the minimum viable end-to-end bundle:
 
 ```powershell
 uv run python -m ama_mech_interp minimum-viable-pipeline
+```
+
+Run actual behavior inference for one model and one prompt suite:
+
+```powershell
+uv run ama-mech-interp run-behavior --model-key qwen_base --run-id mvr1 --prompt-suite artifacts/prompt_suite_mvr1.jsonl
 ```
 
 Select a sparse checkpoint ladder from a candidate file:
