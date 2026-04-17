@@ -88,40 +88,56 @@ If eval logs are incomplete, fall back to an evenly spread ladder such as early,
 
 ## Prompt Suite
 
-Build an approximately 200-prompt workshop suite with three blocks:
+The preprocessing pipeline now starts from the full cleaned GT-HarmBench master pool and then materializes a smaller controlled suite for phase-one mech-interp work.
 
-1. `80` repeated-game prompts
-   Focus on IPD, iterated coordination, Chicken, and Stag variants.
-   Include history conditions: no history, cooperation streak, betrayal streak, alternating, tit-for-tat-like, and random-like.
-2. `80` one-shot GT-HarmBench prompts
-   Use the local CSV as the master source.
-   Prioritize Prisoner's Dilemma, Stag Hunt, Chicken, Bach or Stravinski, and Coordination.
-   Keep `story_row` only in phase one.
-3. `40` disagreement prompts
-   Reserve for prompts where target labels disagree or the models later disagree behaviorally.
-   These become the patching shortlist.
+The default controlled suite is:
 
-The repo materializes this into stable artifacts instead of rebuilding it implicitly:
+1. `140` analysis prompts
+   Balanced across the available GT-HarmBench formal games.
+   These are split into `70` probe-train, `35` probe-validation, and `35` probe-test prompts.
+2. `30` disagreement prompts
+   Proxy-curated before behavior runs using target disagreement and strategic ambiguity.
+   This is the initial causal-analysis pool and should later be refreshed from real inter-model disagreement.
+3. `30` held-out replication prompts
+   Held back for later confirmation once you think you have found a real phenomenon.
 
+The repo materializes these stable artifacts instead of rebuilding them implicitly:
+
+- `artifacts/prompt_pool_master_v1.jsonl`
+- `artifacts/prompt_pool_master_v1.csv`
 - `artifacts/prompt_suite_v1.jsonl`
+- `artifacts/prompt_suite_v1.csv`
 - `artifacts/prompt_suite_mvr1.jsonl`
 - `artifacts/prompt_suite_manifest.json`
+- `artifacts/prompt_suite_v1_build_report.json`
 
 Each prompt row follows a stable schema:
 
 - `prompt_id`
 - `source`
 - `subset`
+- `probe_split`
 - `formal_game`
+- `formal_game_raw`
 - `prompt_text`
 - `actions`
+- `num_actions`
+- `actions_raw`
 - `payoff_matrix`
+- `payoff_matrix_raw`
 - `risk_level`
+- `risk_bucket`
+- `story_side`
+- `payoff_table_present`
 - `history_type`
 - `target_nash`
 - `target_util`
 - `target_rawls`
 - `target_nsw`
+- `target_nash_raw`
+- `target_util_raw`
+- `target_rawls_raw`
+- `target_nsw_raw`
 
 ### GT-HarmBench Guidance
 
@@ -149,6 +165,30 @@ First cleaning pass:
 - parse action lists
 - parse payoff cells
 - normalize target labels
+
+### Dataset Pipeline
+
+The canonical dataset build step is now a first-class command.
+
+Build the cleaned master pool and controlled prompt suite:
+
+```powershell
+uv run ama-build-prompt-suite --csv gt-harmbench-dataset/gt-harmbench-with-targets.csv --artifacts-root artifacts
+```
+
+Equivalent through the main package CLI:
+
+```powershell
+uv run python -m ama_mech_interp materialize-prompt-suite --csv gt-harmbench-dataset/gt-harmbench-with-targets.csv --artifacts-root artifacts
+```
+
+This writes:
+
+- `artifacts/prompt_pool_master_v1.jsonl`
+- `artifacts/prompt_pool_master_v1.csv`
+- `artifacts/prompt_suite_v1.jsonl`
+- `artifacts/prompt_suite_v1.csv`
+- `artifacts/prompt_suite_v1_build_report.json`
 
 ## Analyses To Run First
 
@@ -363,6 +403,12 @@ Materialize the canonical prompt suite artifacts:
 
 ```powershell
 uv run python -m ama_mech_interp materialize-prompt-suite
+```
+
+Or use the dedicated dataset-build command:
+
+```powershell
+uv run ama-build-prompt-suite
 ```
 
 Prepare the minimum viable end-to-end bundle:

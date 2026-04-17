@@ -8,6 +8,7 @@ dependencies = []
 
 [project.scripts]
 ama-mech-interp = "ama_mech_interp.cli:main"
+ama-build-prompt-suite = "ama_mech_interp.data.build_prompt_suite:main"
 
 [build-system]
 requires = ["hatchling"]
